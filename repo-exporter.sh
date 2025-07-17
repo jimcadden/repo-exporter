@@ -2,7 +2,7 @@
 
 # Default values
 # --- Configuration ---
-OUTPUT_FILE="repo_export.md"
+OUTPUT_FILE="export.md"
 EXTENSIONS="js,css,html,py,go,java,rb,php,ts,tsx,jsx,c,cpp,h,hpp,cs,swift,kt,kts,scala,pl,pm,sh,bash,zsh,ps1,rs,lua,sql,md,json,yml,yaml,xml,toml,ini,cfg,conf,properties,env,dockerfile,tf,hcl,groovy,gradle,jenkinsfile"
 EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*,*/dist/*,*/build/*,*/.vscode/*,*/.idea/*,*.log,*.lock"
 CLONED_REPO=false
