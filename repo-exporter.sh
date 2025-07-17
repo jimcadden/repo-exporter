@@ -19,7 +19,7 @@ fi
 LANG=$(echo "$FILE_EXTENSION" | sed 's/^\.//')
 
 # Find and append files with the specified extension
-find "$SOURCE_DIR" -type f -name "*$FILE_EXTENSION" | while read -r FILE; do
+find "$SOURCE_DIR" -type f -name "*$FILE_EXTENSION" -not -path "*/.git/*" -not -path "*/node_modules/*" | while read -r FILE; do
 
     echo "Processing $FILE..."
 
