@@ -9,17 +9,23 @@ CLONED_REPO=false
 
 # --- Functions ---
 function usage {
-    echo "Usage: $0 <path_or_url> [-e <extensions>] [-o <output_file>] [-x <exclude_patterns>]"
+    echo "Usage: $0 <path_or_url> [-e <extensions>] [-o <output_file>] [-x <exclude_patterns>] [-h|--help]"
     echo "  <path_or_url>       : Required. Local directory path or remote Git repository URL."
     echo "  -e <extensions>     : Comma-separated file extensions to include."
     echo "                      (default: a comprehensive list of common extensions)"
     echo "  -o <output_file>    : Output file name (default: repo_export.md)."
     echo "  -x <exclude_patterns>: Comma-separated patterns to exclude."
     echo "                      (default: .git, node_modules, build directories, etc.)"
-    exit 1
+    echo "  -h, --help          : Show this help message and exit."
+    exit ${1:-1}
 }
 
 # --- Argument Parsing ---
+# Handle help flag
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    usage 0
+fi
+
 if [ $# -eq 0 ]; then
     echo "Error: Missing required argument <path_or_url>."
     usage
