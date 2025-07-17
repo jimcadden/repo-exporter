@@ -1,36 +1,35 @@
-#!/bin/bash 
+#!/bin/bash
 
-# Check if correct number of arguments is provided 
-if [ "$#" -ne 3 ]; then 
-    echo "Usage: $0 <source-directory> <extension> <output-file>" 
-    exit 1 
-fi 
+# Check if correct number of arguments is provided
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <source-directory> <extension> <output-file>"
+    exit 1
+fi
 
-SOURCE_DIR="$1" 
-FILE_EXTENSION="$2" 
-OUTPUT_FILE="$3" 
- 
-# Remove existing output file if it exists 
-if [ -f "$OUTPUT_FILE" ]; then 
-    rm "$OUTPUT_FILE" 
-fi 
+SOURCE_DIR="$1"
+FILE_EXTENSION="$2"
+OUTPUT_FILE="$3"
 
-# Find and append files with the specified extension 
-find "$SOURCE_DIR" -type f -name "*$FILE_EXTENSION" | while read -r FILE; do 
+# Remove existing output file if it exists
+if [ -f "$OUTPUT_FILE" ]; then
+    rm "$OUTPUT_FILE"
+fi
 
-    echo "Processing $FILE..." 
+# Extract the language identifier from the file extension (e.g., ".js" -> "js")
+LANG=$(echo "$FILE_EXTENSION" | sed 's/^\.//')
 
-    # Append file path as header 
-    echo -e "// FILE: === $FILE ===\n" >> "$OUTPUT_FILE" 
+# Find and append files with the specified extension
+find "$SOURCE_DIR" -type f -name "*$FILE_EXTENSION" | while read -r FILE; do
 
-    # Append file content 
-    cat "$FILE" >> "$OUTPUT_FILE" 
-done 
+    echo "Processing $FILE..."
 
-echo "All files have been appended to $OUTPUT_FILE." 
+    # Append file path as a markdown header
+    echo -e "# File: $FILE\n" >> "$OUTPUT_FILE"
 
- 
+    # Append file content within a markdown fenced code block
+    echo -e "\`\`\`$LANG" >> "$OUTPUT_FILE"
+    cat "$FILE" >> "$OUTPUT_FILE"
+    echo -e "\n\`\`\`\n" >> "$OUTPUT_FILE"
+done
 
- 
-
- 
+echo "All files have been appended to $OUTPUT_FILE."
