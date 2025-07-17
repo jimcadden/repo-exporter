@@ -1,23 +1,35 @@
 #!/bin/bash
 
 # Default values
-SOURCE_DIR="."
+# --- Configuration ---
 OUTPUT_FILE="repo_export.md"
-EXTENSIONS=""
-EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*" # Default excludes
+EXTENSIONS="js,css,html,py,go,java,rb,php,ts,tsx,jsx,c,cpp,h,hpp,cs,swift,kt,kts,scala,pl,pm,sh,bash,zsh,ps1,rs,lua,sql,md,json,yml,yaml,xml,toml,ini,cfg,conf,properties,env,dockerfile,tf,hcl,groovy,gradle,jenkinsfile"
+EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*,*/dist/*,*/build/*,*/.vscode/*,*/.idea/*,*.log,*.lock"
+CLONED_REPO=false
 
+# --- Functions ---
 function usage {
-    echo "Usage: $0 -d <source-dir> -e <extensions> -o <output-file> [-x <exclude-patterns>]"
-    echo "  -d: Source directory (default: .)"
-    echo "  -e: Comma-separated file extensions (e.g., 'js,css,html')"
-    echo "  -o: Output file (default: repo_export.md)"
-    echo "  -x: Comma-separated exclude patterns (e.g., '*/dist/*,*.log')"
+    echo "Usage: $0 <path_or_url> [-e <extensions>] [-o <output_file>] [-x <exclude_patterns>]"
+    echo "  <path_or_url>       : Required. Local directory path or remote Git repository URL."
+    echo "  -e <extensions>     : Comma-separated file extensions to include."
+    echo "                      (default: a comprehensive list of common extensions)"
+    echo "  -o <output_file>    : Output file name (default: repo_export.md)."
+    echo "  -x <exclude_patterns>: Comma-separated patterns to exclude."
+    echo "                      (default: .git, node_modules, build directories, etc.)"
     exit 1
 }
 
-while getopts "d:e:o:x:" opt; do
+# --- Argument Parsing ---
+if [ $# -eq 0 ]; then
+    echo "Error: Missing required argument <path_or_url>."
+    usage
+fi
+
+SOURCE_INPUT="$1"
+shift # Remove the first argument, so getopts can process the rest
+
+while getopts "e:o:x:" opt; do
     case "${opt}" in
-        d) SOURCE_DIR=${OPTARG} ;;
         e) EXTENSIONS=${OPTARG} ;;
         o) OUTPUT_FILE=${OPTARG} ;;
         x) EXCLUDE_PATTERNS="${EXCLUDE_PATTERNS},${OPTARG}" ;;
@@ -25,9 +37,25 @@ while getopts "d:e:o:x:" opt; do
     esac
 done
 
-if [ -z "$EXTENSIONS" ]; then
-    echo "Error: File extensions must be provided with -e."
-    usage
+# --- Source Validation and Handling ---
+SOURCE_DIR=""
+if [[ "$SOURCE_INPUT" == http* || "$SOURCE_INPUT" == git@* ]]; then
+    # It's a URL, clone it
+    TEMP_DIR=$(mktemp -d)
+    echo "Cloning repository from $SOURCE_INPUT into $TEMP_DIR..."
+    if git clone "$SOURCE_INPUT" "$TEMP_DIR"; then
+        SOURCE_DIR="$TEMP_DIR"
+        CLONED_REPO=true
+    else
+        echo "Error: Failed to clone repository."
+        exit 1
+    fi
+elif [ -d "$SOURCE_INPUT" ]; then
+    # It's a local directory
+    SOURCE_DIR=$(realpath "$SOURCE_INPUT")
+else
+    echo "Error: The specified local path '$SOURCE_INPUT' does not exist or is not a directory."
+    exit 1
 fi
 
 # Start with a clean output file
@@ -76,4 +104,17 @@ eval "$find_cmd" | while read -r FILE; do
     echo -e "\n\`\`\`\n" >> "$OUTPUT_FILE"
 done
 
-echo "All files have been appended to $OUTPUT_FILE."
+echo "✅ All files have been appended to $OUTPUT_FILE."
+
+# --- Cleanup ---
+if [ "$CLONED_REPO" = true ]; then
+    read -p "Do you want to delete the cloned repository at '$SOURCE_DIR'? (y/N) " -n 1 -r
+    echo # Move to a new line
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Deleting cloned repository..."
+        rm -rf "$SOURCE_DIR"
+        echo "Cleanup complete."
+    else
+        echo "Skipping deletion. The cloned repository is at '$SOURCE_DIR'."
+    fi
+fi
