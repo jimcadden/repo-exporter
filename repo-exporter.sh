@@ -216,9 +216,8 @@ find "$SOURCE_DIR" -type f -not -type l | while read -r FILE; do
     
     # Append file content within a markdown fenced code block
     echo -e "\`\`\`$LANG" >> "$OUTPUT_FILE"
-    # Limit file content to first 100 lines for testing
-    head -n 100 "$FILE" >> "$OUTPUT_FILE"
-    echo -e "\n... (content truncated for testing) ...\n" >> "$OUTPUT_FILE"
+    # Output the entire file content
+    cat "$FILE" >> "$OUTPUT_FILE"
     echo -e "\`\`\`\n" >> "$OUTPUT_FILE"
 done
 
