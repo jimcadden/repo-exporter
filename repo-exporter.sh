@@ -3,7 +3,7 @@
 # Default values
 # --- Configuration ---
 OUTPUT_FILE="export.md"
-EXTENSIONS=""
+EXTENSIONS="sh,md,js,ts,py,java,c,cpp,h,hpp,go,rb,php,html,css,json,yaml,yml,xml,txt,sql,rs,swift,kt,dart,pl,lua,ex,exs,clj,scala,hs,erl,cs,fs,jsx,tsx,vue,svelte,tf,conf,ini,toml,bat,ps1"  # Comprehensive list of common extensions
 EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*,*/dist/*,*/build/*,*/.vscode/*,*/.idea/*,*.log,*.lock,*/.aider*"
 CLONED_REPO=false
 
