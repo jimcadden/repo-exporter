@@ -3,7 +3,7 @@
 # Default values
 # --- Configuration ---
 OUTPUT_FILE="export.md"
-EXTENSIONS="sh,md"  # Limit to just shell scripts and markdown for testing
+EXTENSIONS=""
 EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*,*/dist/*,*/build/*,*/.vscode/*,*/.idea/*,*.log,*.lock,*/.aider*"
 CLONED_REPO=false
 
