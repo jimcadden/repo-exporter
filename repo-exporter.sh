@@ -11,9 +11,11 @@ CLONED_REPO=false
 function usage {
     echo "Usage: $0 <path_or_url> [-e <extensions>] [-o <output_file>] [-x <exclude_patterns>] [-h|--help]"
     echo "  <path_or_url>       : Required. Local directory path or remote Git repository URL."
+    echo "                        For remote repositories, you can specify a tag/commit by appending @tag_or_commit"
+    echo "                        Example: https://github.com/user/repo.git@v1.0.0 or git@github.com:user/repo.git@abc123"
     echo "  -e <extensions>     : Comma-separated file extensions to include."
     echo "                      (default: a comprehensive list of common extensions)"
-    echo "  -o <output_file>    : Output file name (default: repo_export.md)."
+    echo "  -o <output_file>    : Output file name (default: export.md)."
     echo "  -x <exclude_patterns>: Comma-separated patterns to exclude."
     echo "                      (default: .git, node_modules, build directories, etc.)"
     echo "  -h, --help          : Show this help message and exit."
@@ -46,12 +48,45 @@ done
 # --- Source Validation and Handling ---
 SOURCE_DIR=""
 if [[ "$SOURCE_INPUT" == http* || "$SOURCE_INPUT" == git@* ]]; then
+    # Check if the URL contains a tag/commit specification
+    REPO_URL="$SOURCE_INPUT"
+    TAG_COMMIT=""
+    
+    # For HTTPS URLs: https://github.com/user/repo.git@tag
+    if [[ "$SOURCE_INPUT" == http* && "$SOURCE_INPUT" == *"@"* ]]; then
+        REPO_URL=${SOURCE_INPUT%@*}
+        TAG_COMMIT=${SOURCE_INPUT##*@}
+        echo "Repository URL: $REPO_URL"
+        echo "Tag/Commit: $TAG_COMMIT"
+    # For SSH URLs: git@github.com:user/repo.git@tag
+    elif [[ "$SOURCE_INPUT" == git@* ]]; then
+        # Count the number of @ symbols
+        AT_COUNT=$(grep -o "@" <<< "$SOURCE_INPUT" | wc -l)
+        if [[ $AT_COUNT -eq 2 ]]; then
+            # Extract everything after the last @
+            TAG_COMMIT=${SOURCE_INPUT##*@}
+            # Remove the tag/commit part from the original URL
+            REPO_URL=${SOURCE_INPUT%@$TAG_COMMIT}
+            echo "Repository URL: $REPO_URL"
+            echo "Tag/Commit: $TAG_COMMIT"
+        fi
+    fi
+    
     # It's a URL, clone it
     TEMP_DIR=$(mktemp -d)
-    echo "Cloning repository from $SOURCE_INPUT into $TEMP_DIR..."
-    if git clone "$SOURCE_INPUT" "$TEMP_DIR"; then
+    echo "Cloning repository from $REPO_URL into $TEMP_DIR..."
+    if git clone "$REPO_URL" "$TEMP_DIR"; then
         SOURCE_DIR="$TEMP_DIR"
         CLONED_REPO=true
+        
+        # If a tag/commit was specified, checkout that specific tag/commit
+        if [[ -n "$TAG_COMMIT" ]]; then
+            echo "Checking out tag/commit: $TAG_COMMIT..."
+            if ! (cd "$TEMP_DIR" && git checkout "$TAG_COMMIT"); then
+                echo "Error: Failed to checkout tag/commit: $TAG_COMMIT"
+                exit 1
+            fi
+        fi
     else
         echo "Error: Failed to clone repository."
         exit 1

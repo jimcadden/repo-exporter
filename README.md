@@ -12,7 +12,7 @@ The script can process a local directory or clone a remote Git repository. It in
 
 ### Arguments
 
--   `<path_or_url>`: **Required**. The path to a local source code directory or the URL of a remote Git repository.
+-   `<path_or_url>`: **Required**. The path to a local source code directory or the URL of a remote Git repository. For remote repositories, you can specify a tag or commit by appending `@tag_or_commit` to the URL.
 
 ### Options
 
@@ -64,3 +64,23 @@ In addition to the default exclusions, this will also ignore any `backups` direc
 
 ```bash
 ./repo-exporter.sh ~/projects/my-cool-app -x "*/backups/*"
+```
+
+### 6. Clone and Export a Specific Tag or Commit
+
+This example clones a specific tag (v1.0.0) from a GitHub repository and exports its contents.
+
+```bash
+./repo-exporter.sh https://github.com/user/repo.git@v1.0.0
+```
+
+You can also specify a commit hash:
+
+```bash
+./repo-exporter.sh https://github.com/user/repo.git@abc123def456
+```
+
+This works with SSH URLs as well:
+
+```bash
+./repo-exporter.sh git@github.com:user/repo.git@v1.0.0
