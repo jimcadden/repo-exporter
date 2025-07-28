@@ -3,8 +3,8 @@
 # Default values
 # --- Configuration ---
 OUTPUT_FILE="export.md"
-EXTENSIONS="js,css,html,py,go,java,rb,php,ts,tsx,jsx,c,cpp,h,hpp,cs,swift,kt,kts,scala,pl,pm,sh,bash,zsh,ps1,rs,lua,sql,md,json,yml,yaml,xml,toml,ini,cfg,conf,properties,env,dockerfile,tf,hcl,groovy,gradle,jenkinsfile"
-EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*,*/dist/*,*/build/*,*/.vscode/*,*/.idea/*,*.log,*.lock"
+EXTENSIONS="sh,md"  # Limit to just shell scripts and markdown for testing
+EXCLUDE_PATTERNS="*/.git/*,*/node_modules/*,*/dist/*,*/build/*,*/.vscode/*,*/.idea/*,*.log,*.lock,*/.aider*"
 CLONED_REPO=false
 
 # --- Functions ---
@@ -70,44 +70,121 @@ fi
 # --- 1. Add Directory Tree ---
 echo "# Repository Structure" >> "$OUTPUT_FILE"
 echo '```' >> "$OUTPUT_FILE"
-tree -L 3 "$SOURCE_DIR" >> "$OUTPUT_FILE"
+
+# Check if tree command is available
+if command -v tree &> /dev/null; then
+    # Create tree exclude patterns
+    TREE_EXCLUDE=""
+    for pattern in "${EXCLUDE_ARRAY[@]}"; do
+        # Convert glob pattern to tree-compatible pattern
+        # Remove asterisks and extract the core pattern
+        clean_pattern=$(echo "$pattern" | sed 's/\*//g')
+        if [[ -n "$clean_pattern" ]]; then
+            TREE_EXCLUDE="$TREE_EXCLUDE -I '$(basename "$clean_pattern")'"
+        fi
+    done
+    
+    # Execute tree with exclusions
+    eval "tree -L 3 $TREE_EXCLUDE \"$SOURCE_DIR\"" >> "$OUTPUT_FILE"
+else
+    echo "Directory listing (tree command not available):" >> "$OUTPUT_FILE"
+    # Fallback to find + ls for directory structure with exclusions
+    find_cmd="find \"$SOURCE_DIR\" -type d -maxdepth 3"
+    
+    # Add exclusion patterns to find command
+    for pattern in "${EXCLUDE_ARRAY[@]}"; do
+        # Convert glob pattern to find-compatible pattern
+        find_pattern=$(echo "$pattern" | sed 's/\*/*/g')
+        find_cmd="$find_cmd -not -path \"$find_pattern\""
+    done
+    
+    eval "$find_cmd" | sort | while read -r dir; do
+        level=$(echo "$dir" | sed "s|$SOURCE_DIR||" | tr -cd '/' | wc -c)
+        indent=$(printf '%*s' "$level" '' | tr ' ' '  ')
+        echo "$indent$(basename "$dir")/" >> "$OUTPUT_FILE"
+    done
+fi
+
 echo '```' >> "$OUTPUT_FILE"
 echo -e "\n" >> "$OUTPUT_FILE"
 
-# --- 2. Build Find Command ---
-find_cmd="find \"$SOURCE_DIR\" -type f"
-
-# Add extension patterns
+# --- 2. Process Files ---
+# Create arrays for extensions and exclude patterns
 IFS=',' read -ra EXT_ARRAY <<< "$EXTENSIONS"
-find_cmd+=" \( "
-for i in "${!EXT_ARRAY[@]}"; do
-    find_cmd+=" -name \"*.${EXT_ARRAY[$i]}\""
-    if [ $i -lt $((${#EXT_ARRAY[@]} - 1)) ]; then
-        find_cmd+=" -o"
-    fi
-done
-find_cmd+=" \)"
-
-# Add exclude patterns
 IFS=',' read -ra EXCLUDE_ARRAY <<< "$EXCLUDE_PATTERNS"
-for pattern in "${EXCLUDE_ARRAY[@]}"; do
-    find_cmd+=" -not -path \"$pattern\""
-done
+
+echo "DEBUG: Processing files with extensions: ${EXT_ARRAY[*]}"
+echo "DEBUG: Excluding patterns: ${EXCLUDE_ARRAY[*]}"
 
 # --- 3. Execute and Process Files ---
-eval "$find_cmd" | while read -r FILE; do
-    echo "Processing $FILE..."
+# Process files directly without complex find command construction
+echo "DEBUG: Finding files in $SOURCE_DIR"
 
+# Simple test to verify find works
+echo "DEBUG: Testing basic find command..."
+find "$SOURCE_DIR" -type f -name "*.sh" -print
+
+# Process files directly
+find "$SOURCE_DIR" -type f -not -type l | while read -r FILE; do
+    # Skip files that don't match our extensions
+    MATCHED=0
+    for ext in "${EXT_ARRAY[@]}"; do
+        if [[ "$FILE" == *.$ext ]]; then
+            MATCHED=1
+            break
+        fi
+    done
+    
+    # Skip if extension doesn't match
+    if [ $MATCHED -eq 0 ]; then
+        continue
+    fi
+    
+    # Skip files that match exclude patterns
+    for pattern in "${EXCLUDE_ARRAY[@]}"; do
+        # Convert glob pattern to regex for bash matching
+        regex_pattern=$(echo "$pattern" | sed 's/\*/[^\/]*/g')
+        if [[ "$FILE" =~ $regex_pattern ]]; then
+            echo "Skipping excluded file: $FILE"
+            continue 2  # Skip to next file
+        fi
+    done
+    
+    echo "Processing $FILE..."
+    
+    # Validate filename - skip files with suspicious characters
+    if [[ "$FILE" =~ [[:cntrl:]] ]]; then
+        echo "Warning: Skipping file with control characters in name: $FILE"
+        continue
+    fi
+    
+    # Check if file exists and is readable
+    if [ ! -f "$FILE" ] || [ ! -r "$FILE" ]; then
+        echo "Warning: Cannot read file: $FILE"
+        continue
+    fi
+    
+    # More strict check for text files
+    if ! file -b "$FILE" | grep -q -E "text|ASCII|UTF-8"; then
+        echo "Skipping binary file: $FILE"
+        continue
+    fi
+    
+    # Only process text files
+    echo "Processing text file: $FILE..."
+    
     # Get language from extension
     LANG="${FILE##*.}"
-
+    
     # Append file path as a markdown header
     echo -e "# File: $FILE\n" >> "$OUTPUT_FILE"
-
+    
     # Append file content within a markdown fenced code block
     echo -e "\`\`\`$LANG" >> "$OUTPUT_FILE"
-    cat "$FILE" >> "$OUTPUT_FILE"
-    echo -e "\n\`\`\`\n" >> "$OUTPUT_FILE"
+    # Limit file content to first 100 lines for testing
+    head -n 100 "$FILE" >> "$OUTPUT_FILE"
+    echo -e "\n... (content truncated for testing) ...\n" >> "$OUTPUT_FILE"
+    echo -e "\`\`\`\n" >> "$OUTPUT_FILE"
 done
 
 echo "✅ All files have been appended to $OUTPUT_FILE."
